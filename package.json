@@ -1,0 +1,24 @@
+{
+  "name": "luukbox",
+  "version": "1.0.0",
+  "description": "Discord Music Bot because the others suck",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luukbox/discord_bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/luukbox/discord_bot/issues"
+  },
+  "homepage": "https://github.com/luukbox/discord_bot#readme",
+  "dependencies": {
+    "discord.js": "^11.4.2",
+    "opusscript": "0.0.6",
+    "ytdl-core": "^0.29.1"
+  }
+}
