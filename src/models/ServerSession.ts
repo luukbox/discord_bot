@@ -1,28 +1,32 @@
 import {
   DMChannel,
   GroupDMChannel,
+  RichEmbed,
   TextChannel,
   VoiceChannel,
   VoiceConnection,
 } from 'discord.js';
 import Song from './Song';
 
-export default class Queue {
+export default class ServerSession {
+  public guildID: string;
   public textChannel: TextChannel | DMChannel | GroupDMChannel;
   public voiceChannel: VoiceChannel;
   public connection: VoiceConnection;
-  public songs: Song[];
+  public queue: Song[];
   public playing: boolean;
   private volume: number;
 
   constructor(
     textChannel: TextChannel | DMChannel | GroupDMChannel,
     voiceChannel: VoiceChannel,
+    guildID: string,
   ) {
     this.textChannel = textChannel;
     this.voiceChannel = voiceChannel;
+    this.guildID = guildID;
     this.connection = null;
-    this.songs = [];
+    this.queue = [];
     this.playing = true;
     this.volume = 10;
   }
@@ -57,5 +61,43 @@ export default class Queue {
     }
     this.volume = volume;
     this.connection.dispatcher.setVolume(volume / 100);
+  }
+
+  public getQueueEmbed(): RichEmbed {
+    return new RichEmbed()
+      .setTitle('Warteschlange')
+      .setColor(0x00ae86)
+      .setDescription(
+        this.queue
+          .map((song, index) => {
+            if (index === 0) {
+              return `🎵 [${song.title}](${song.url}) ${song.queuedBy} 🎵\n`;
+            }
+            return `${index}. [${song.title}](${song.url}) ${song.queuedBy}`;
+          })
+          .join('\n'),
+      );
+  }
+
+  public getNowPlayingEmbed(): RichEmbed {
+    return new RichEmbed()
+      .setTitle('Jetzt läuft')
+      .setColor(0x00ae86)
+      .setDescription(
+        `🎵 [${this.queue[0].title}](${this.queue[0].url}) ${
+          this.queue[0].queuedBy
+        } 🎵`,
+      );
+  }
+
+  public getNextSong(): Song {
+    this.queue.shift();
+    const nextSong = this.queue[0];
+    if (!nextSong) {
+      return null;
+    } else {
+      nextSong.isPlaying = true;
+      return nextSong;
+    }
   }
 }

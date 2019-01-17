@@ -1,21 +1,17 @@
-import { Message, Util } from 'discord.js';
-import * as YouTube from 'simple-youtube-api';
-import * as ytdl from 'ytdl-core';
-
+import { Message } from 'discord.js';
+import * as youtube from './apis/yt';
 import { INSULTS, PREFIX, YOUTUBE_API_KEY } from './config';
-import Queue from './models/Queue';
+import ServerSession from './models/ServerSession';
 import Song from './models/Song';
 
-const queue: Map<string, Queue> = new Map();
-
-const youtube = new YouTube(YOUTUBE_API_KEY);
+const sessions: Map<string, ServerSession> = new Map();
 
 export default async function(msg: Message) {
   if (msg.author.bot || !msg.content.startsWith(PREFIX)) {
     return;
   }
 
-  const serverQueue = queue.get(msg.guild.id);
+  const serverSession = sessions.get(msg.guild.id);
 
   const insult = INSULTS[Math.floor(Math.random() * INSULTS.length)];
 
@@ -24,150 +20,151 @@ export default async function(msg: Message) {
 
   // PING
   if (msg.content.startsWith(`${PREFIX}ping`)) {
-    return msg.channel.send(`PONG du ${insult}!`);
+    return msg.channel.send(
+      `PONG du ${insult}! (${Date.now() - msg.createdAt.getTime()}ms)`,
+    );
   }
   // PLAY
   else if (msg.content.startsWith(`${PREFIX}play`)) {
     if (!isUserInVoiceChannel(msg)) {
-      return msg.channel.send('Du Spast bist in keinem Voice Channel..');
+      return msg.channel.send('Du bist in keinem Voice Channel..');
     }
 
     if (!isPermissionsSet(msg)) {
       return msg.channel.send('Ich hab keine Rechte für den VoiceChannel..');
     }
 
-    if (!args[1]) {
-      return;
+    // No Arguments provided
+    if (args.length < 2) {
+      return msg.react('🖕');
     }
-    const url = args[1].replace(/<(.+)>/g, '$1');
-    let video;
+
+    let song: Song;
+
     try {
-      video = await youtube.getVideo(url);
-    } catch (error) {
-      try {
-        const query = args.slice(1).join(' ');
-        const videos = await youtube.search(query, 1);
-        video = await youtube.getVideoByID(videos[0].id);
-      } catch (err) {
-        console.error(err);
-        return msg.channel.send('Konnte dazu leider nichts finden...');
+      // construct the url from the first argument
+      const url = args[1].replace(/<(.+)>/g, '$1');
+      // check if the url is a valid youtube url
+      if (youtube.isYoutube(url)) {
+        song = await youtube.getSongByURL(url);
       }
+      // else construct a query string from all arguments and search youtube
+      else {
+        const query = args.slice(1).join(' ');
+        song = await youtube.getSongByQuery(query);
+      }
+    } catch (error) {
+      console.error(error);
+      return msg.react('💩');
     }
 
-    const song = new Song(video.id, Util.escapeMarkdown(video.title));
-    console.log(song);
-
-    if (!serverQueue) {
-      const newServerQueue = new Queue(msg.channel, msg.member.voiceChannel);
-      newServerQueue.songs.push(song);
+    song.queuedBy = msg.author.toString();
+    if (!serverSession) {
+      const newServerSession = new ServerSession(
+        msg.channel,
+        msg.member.voiceChannel,
+        msg.guild.id,
+      );
+      newServerSession.queue.push(song);
       try {
         const connection = await msg.member.voiceChannel.join();
-        newServerQueue.connection = connection;
-        queue.set(msg.guild.id, newServerQueue);
-        play(msg.guild.id, newServerQueue.songs[0]);
+        newServerSession.connection = connection;
+        sessions.set(msg.guild.id, newServerSession);
+        play(msg.guild.id, newServerSession.queue[0]);
       } catch (error) {
         console.log(error);
-        queue.delete(msg.guild.id);
+        sessions.delete(msg.guild.id);
         return msg.channel.send(`Error: ${error}`);
       }
     } else {
-      serverQueue.songs.push(song);
-      return msg.channel.send(
-        `${song.title} wurde der Warteschlange hinzugefügt`,
-      );
+      serverSession.queue.push(song);
+      return msg.react('👌');
     }
   }
   // STOP
   else if (msg.content.startsWith(`${PREFIX}stop`)) {
-    if (!msg.member.voiceChannel) {
-      return msg.channel.send('Bist in keinem voicechannel..');
+    if (!serverSession) {
+      return undefined;
     }
-    if (!serverQueue) {
-      return;
+    if (!isUserInVoiceChannel(msg)) {
+      return msg.react('🤦');
     }
-    serverQueue.songs = [];
-    serverQueue.connection.dispatcher.end();
+    serverSession.queue = [];
+    serverSession.connection.dispatcher.end();
+    return msg.react('⏹');
   }
   // PAUSE
   else if (msg.content.startsWith(`${PREFIX}pause`)) {
+    if (!serverSession) {
+      return undefined;
+    }
     if (!isUserInVoiceChannel(msg)) {
-      return msg.channel.send('Du Spast bist in keinem Voice Channel..');
+      return msg.react('🤦');
     }
-    if (!serverQueue) {
-      return;
-    }
-    serverQueue.pause(() => msg.channel.send('Jo, is pausiert...'));
-    return;
+    return serverSession.pause(() => msg.react('⏸'));
   }
   // RESUME
   else if (msg.content.startsWith(`${PREFIX}resume`)) {
+    if (!serverSession) {
+      return undefined;
+    }
     if (!isUserInVoiceChannel(msg)) {
-      return msg.channel.send('Du Spast bist in keinem Voice Channel..');
+      return msg.react('🤦');
     }
-    if (!serverQueue) {
-      return;
-    }
-    serverQueue.resume(() => msg.channel.send('...und es geht weiter'));
+    serverSession.resume(() => msg.react('▶'));
   }
   // VOLUME
   else if (msg.content.startsWith(`${PREFIX}volume`)) {
-    if (!serverQueue) {
-      return;
+    if (!serverSession) {
+      return undefined;
     }
     const volume = parseInt(args[1], 10);
     if (!volume) {
-      return msg.channel.send(
-        `Wir ballern grad auf ${serverQueue.getVolume()}% Lautstärke.`,
+      return msg.reply(
+        `Wir ballern grad auf ${serverSession.getVolume()}% \🔊`,
       );
     }
     if (!isUserInVoiceChannel(msg)) {
-      return msg.channel.send('Du Spast bist in keinem Voice Channel..');
+      return msg.react('🤦');
     }
-    serverQueue.setVolume(volume);
-    return msg.channel.send(`Neue Lautstärke: ${serverQueue.getVolume()}%`);
+    serverSession.setVolume(volume);
+    return msg.react('👍');
   } else if (msg.content.startsWith(`${PREFIX}skip`)) {
+    if (!serverSession) {
+      return undefined;
+    }
     if (!isUserInVoiceChannel(msg)) {
-      return msg.channel.send('Du Spast bist in keinem Voice Channel..');
+      return msg.react('🤦');
     }
-    if (!serverQueue) {
-      return;
+    serverSession.connection.dispatcher.end();
+    return msg.react('⏭');
+  }
+  // QUEUE
+  else if (msg.content.startsWith(`${PREFIX}queue`)) {
+    if (!serverSession) {
+      return undefined;
     }
-    serverQueue.connection.dispatcher.end();
-  } else if (msg.content.startsWith(`${PREFIX}queue`)) {
-    if (!serverQueue) {
-      return;
-    }
-    return msg.channel.send(`
-      ${serverQueue.songs
-        .map((song, index) => {
-          if (index === 0) {
-            return `--> ${index + 1}. ${song.title}`;
-          }
-          return `${index + 1}. ${song.title}`;
-        })
-        .join('\n')}
-    `);
+    return msg.channel.send(serverSession.getQueueEmbed());
   }
 }
 
 function play(guildID: string, song: Song) {
-  const serverQueue = queue.get(guildID);
+  const serverSession = sessions.get(guildID);
 
   if (!song) {
-    serverQueue.voiceChannel.leave();
-    queue.delete(guildID);
+    serverSession.voiceChannel.leave();
+    sessions.delete(guildID);
     return;
   }
 
-  serverQueue.connection
-    .playStream(ytdl(song.url))
+  serverSession.connection
+    .playStream(youtube.stream(song))
     .on('end', () => {
-      serverQueue.songs.shift();
-      play(guildID, serverQueue.songs[0]);
+      play(guildID, serverSession.getNextSong());
     })
     .on('error', (error) => console.error(error));
-  serverQueue.setVolume();
-  serverQueue.textChannel.send(`Jetzt läuft: ${song.title}`);
+  serverSession.setVolume();
+  serverSession.textChannel.send(serverSession.getNowPlayingEmbed());
 }
 
 function isUserInVoiceChannel(msg: Message): boolean {
