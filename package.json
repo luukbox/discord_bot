@@ -2,9 +2,9 @@
   "name": "luukbox",
   "version": "1.0.0",
   "description": "Discord Music Bot because the others suck",
-  "main": "index.js",
+  "main": "main.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "ts-node ./src/main.ts"
   },
   "repository": {
     "type": "git",
@@ -18,7 +18,14 @@
   "homepage": "https://github.com/luukbox/discord_bot#readme",
   "dependencies": {
     "discord.js": "^11.4.2",
-    "opusscript": "0.0.6",
+    "node-opus": "^0.3.1",
+    "simple-youtube-api": "^5.1.1",
     "ytdl-core": "^0.29.1"
+  },
+  "devDependencies": {
+    "ts-node": "^7.0.1",
+    "tslint": "^5.12.1",
+    "tslint-config-prettier": "^1.17.0",
+    "typescript": "^3.2.2"
   }
 }
