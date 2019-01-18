@@ -1,28 +1,35 @@
 import { Client } from 'discord.js';
-
-import { DISCORD_TOKEN } from './config';
-import messageHandler from './messageHandler';
+import {
+  PauseCommand,
+  PingCommand,
+  PlayCommand,
+  QueueCommand,
+  ResumeCommand,
+  SkipCommand,
+  StopCommand,
+  VolumeCommand,
+} from './commands';
+import { DISCORD_TOKEN, PREFIX } from './config';
+import { MessageBroker } from './message-broker/MessageBroker';
+import ServerSession from './models/ServerSession';
 
 const client = new Client({ disableEveryone: true });
+const serverStore = new Map<string, ServerSession>();
+const messageBroker = new MessageBroker(client, PREFIX);
 
-client.on('ready', () => {
-  console.log('LuukBox is ready..');
-});
+const commands = [
+  new PingCommand(),
+  new PlayCommand(serverStore),
+  new StopCommand(serverStore),
+  new PauseCommand(serverStore),
+  new ResumeCommand(serverStore),
+  new QueueCommand(serverStore),
+  new SkipCommand(serverStore),
+  new VolumeCommand(serverStore),
+];
 
-client.on('disconnect', () => {
-  console.log('LuukBox disconnected, will reconnect now...');
-});
+// add the commands
+commands.forEach((c) => messageBroker.addCommand(c));
 
-client.on('reconnecting', () => {
-  console.log('Reconnecting...');
-});
-
-client.on('warn', console.warn);
-
-client.on('error', console.error);
-
-client.on('message', (msg) => {
-  messageHandler(msg);
-});
-
+// start the client
 client.login(DISCORD_TOKEN);
