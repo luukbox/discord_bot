@@ -11,6 +11,8 @@ export default async function(msg: Message) {
     return;
   }
 
+  console.log(msg.content);
+
   const serverSession = sessions.get(msg.guild.id);
 
   const insult = INSULTS[Math.floor(Math.random() * INSULTS.length)];
