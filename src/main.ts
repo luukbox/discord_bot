@@ -27,8 +27,6 @@ const commands = [
   new VolumeCommand(serverStore),
 ];
 
-console.log('DISCORD TOK:', DISCORD_TOKEN);
-
 // add the commands
 commands.forEach((c) => messageBroker.addCommand(c));
 

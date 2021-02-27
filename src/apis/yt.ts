@@ -23,8 +23,5 @@ export async function getSongByURL(url: string): Promise<Song> {
 }
 
 export function stream(song: Song) {
-  // WTF
-  const filter: 'audioonly' = 'audioonly';
-  const quality: 'lowest' = 'lowest';
-  return ytdl(song.url, { filter, quality });
+  return ytdl(song.url, { filter: 'audioonly', quality: 'highestaudio' });
 }

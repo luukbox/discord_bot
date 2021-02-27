@@ -65,7 +65,7 @@ export class PlayCommand implements ICommand {
       } catch (error) {
         console.log(error);
         this.serverStore.delete(msg.guild.id);
-        return msg.channel.send(`Error: ${error}`);
+        return msg.channel.send(`${error}`);
       }
     } else {
       serverSession.queue.push(song);
@@ -75,7 +75,7 @@ export class PlayCommand implements ICommand {
 
   private play(guildID: string, song: Song) {
     const serverSession = this.serverStore.get(guildID);
-
+    console.log(song);
     if (!song) {
       serverSession.voiceChannel.leave();
       this.serverStore.delete(guildID);

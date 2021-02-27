@@ -22,7 +22,7 @@
     "dotenv": "^6.2.0",
     "opusscript": "0.0.6",
     "simple-youtube-api": "^5.1.1",
-    "ytdl-core": "^0.29.1"
+    "ytdl-core": "^4.5.0"
   },
   "devDependencies": {
     "ts-node": "^7.0.1",
