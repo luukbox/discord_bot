@@ -4,7 +4,9 @@
   "description": "Discord Music Bot because the others suck",
   "main": "main.ts",
   "scripts": {
-    "start": "tsc && node ./dist/main.js",
+    "build": "tsc",
+    "start": "build && node ./dist/main.js",
+    "pm2": "pm2 start ./dist/main.js",
     "dev": "ts-node ./src/main.ts"
   },
   "repository": {
@@ -26,6 +28,7 @@
     "ytdl-core": "^4.5.0"
   },
   "devDependencies": {
+    "pm2": "^4.5.5",
     "ts-node": "^7.0.1",
     "tslint": "^5.12.1",
     "tslint-config-prettier": "^1.17.0",
