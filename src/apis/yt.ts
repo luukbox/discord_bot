@@ -1,6 +1,6 @@
 import { Util } from 'discord.js';
-import * as YouTube from 'simple-youtube-api';
-import * as ytdl from 'ytdl-core';
+import YouTube from 'simple-youtube-api';
+import ytdl from 'ytdl-core';
 import { YOUTUBE_API_KEY } from '../config';
 import Song from '../models/Song';
 
@@ -23,5 +23,5 @@ export async function getSongByURL(url: string): Promise<Song> {
 }
 
 export function stream(song: Song) {
-  return ytdl(song.url, { filter: 'audioonly', quality: 'highestaudio' });
+  return ytdl(song.url, { filter: 'audioonly' });
 }
