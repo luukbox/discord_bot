@@ -89,12 +89,14 @@ export default class ServerSession {
   }
 
   public getNowPlayingEmbed(): RichEmbed {
+    let description = `🎵 [${this.queue[0].title}](${this.queue[0].url}) ${this.queue[0].queuedBy} 🎵`;
+    if (this.queue.length > 1) {
+      description += `\n\nNext Up:\n\n[${this.queue[1].title}](${this.queue[1].url}) ${this.queue[1].queuedBy}`;
+    }
     return new RichEmbed()
       .setTitle('Jetzt läuft')
       .setColor(0x00ae86)
-      .setDescription(
-        `🎵 [${this.queue[0].title}](${this.queue[0].url}) ${this.queue[0].queuedBy} 🎵`,
-      );
+      .setDescription(description);
   }
 
   public getNextSong(): Song {

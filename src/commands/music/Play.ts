@@ -119,11 +119,30 @@ export class PlayCommand implements ICommand {
     serverSession.connection
       .playStream(youtube.stream(song))
       .on('end', async () => {
+        song.isPlaying = false;
         this.play(guildID, serverSession.getNextSong());
       })
       .on('error', (error) => console.error(error));
 
     serverSession.setVolume();
-    serverSession.textChannel.send(serverSession.getNowPlayingEmbed());
+    const msgs = await serverSession.textChannel.send(
+      serverSession.getNowPlayingEmbed(),
+    );
+    const msg = Array.isArray(msgs) ? msgs[0] : (msgs as Message);
+
+    await msg.react('⏭');
+
+    const filter = (reaction, user) => {
+      return ['⏭'].includes(reaction.emoji.name) && user.id !== msg.author.id; // donÄt react on bot reactions
+    };
+
+    msg.awaitReactions(filter, { max: 1 }).then((collected) => {
+      if (song.isPlaying) {
+        song.isPlaying = false;
+        serverSession.queue.slice(0, 1);
+        serverSession.connection.dispatcher.end();
+      }
+      msg.react('👍');
+    });
   }
 }
