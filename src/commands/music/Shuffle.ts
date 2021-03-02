@@ -3,8 +3,8 @@ import { ICommand } from '../../message-broker/MessageBroker';
 import ServerSession from '../../models/ServerSession';
 import { isUserInVoiceChannel } from '../helpers';
 
-export class SkipCommand implements ICommand {
-  public commandString = 'skip';
+export class ShuffleCommand implements ICommand {
+  public commandString = 'shuffle';
 
   private serverStore: Map<string, ServerSession>;
 
@@ -15,23 +15,11 @@ export class SkipCommand implements ICommand {
   public run(msg: Message) {
     const serverSession = this.serverStore.get(msg.guild.id);
     if (!serverSession) {
-      return undefined;
+      return;
     }
     if (!isUserInVoiceChannel(msg)) {
       return msg.react('🤦');
     }
-    const args = msg.content.split(' ');
-    if (args[1]) {
-      let amount = parseInt(args[1], 10);
-
-      if (!isNaN(amount) && amount > 0) {
-        if (amount > serverSession.queue.length) {
-          amount = serverSession.queue.length;
-        }
-        serverSession.queue.splice(0, amount - 1);
-      }
-    }
-    serverSession.connection.dispatcher.end();
-    return msg.react('⏭');
+    return serverSession.shuffleQueue(() => msg.react('🔀'));
   }
 }

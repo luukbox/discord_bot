@@ -47,6 +47,11 @@ export default class ServerSession {
     }
   }
 
+  public shuffleQueue(callback: () => void) {
+    this.queue.sort(() => Math.random() - 0.5);
+    callback();
+  }
+
   public getVolume(): number {
     return this.connection.dispatcher.volume * 100;
   }
@@ -64,19 +69,23 @@ export default class ServerSession {
   }
 
   public getQueueEmbed(): RichEmbed {
+    const maxElementsDisplayedInQueue = 20;
+    let description = this.queue
+      .slice(0, maxElementsDisplayedInQueue)
+      .map((song, index) => {
+        if (index === 0) {
+          return `🎵 [${song.title}](${song.url}) ${song.queuedBy} 🎵\n`;
+        }
+        return `${index}. [${song.title}](${song.url}) ${song.queuedBy}`;
+      })
+      .join('\n');
+    if (this.queue.length > maxElementsDisplayedInQueue) {
+      description += `\n...${this.queue.length - maxElementsDisplayedInQueue}`;
+    }
     return new RichEmbed()
       .setTitle('Warteschlange')
       .setColor(0x00ae86)
-      .setDescription(
-        this.queue
-          .map((song, index) => {
-            if (index === 0) {
-              return `🎵 [${song.title}](${song.url}) ${song.queuedBy} 🎵\n`;
-            }
-            return `${index}. [${song.title}](${song.url}) ${song.queuedBy}`;
-          })
-          .join('\n'),
-      );
+      .setDescription(description);
   }
 
   public getNowPlayingEmbed(): RichEmbed {
@@ -84,9 +93,7 @@ export default class ServerSession {
       .setTitle('Jetzt läuft')
       .setColor(0x00ae86)
       .setDescription(
-        `🎵 [${this.queue[0].title}](${this.queue[0].url}) ${
-          this.queue[0].queuedBy
-        } 🎵`,
+        `🎵 [${this.queue[0].title}](${this.queue[0].url}) ${this.queue[0].queuedBy} 🎵`,
       );
   }
 

@@ -4,6 +4,7 @@ export default class Song {
   public url: string;
   public isPlaying: boolean;
   public queuedBy: string;
+  public resolved: boolean;
 
   constructor(id: string, title: string) {
     this.id = id;
@@ -11,5 +12,6 @@ export default class Song {
     this.url = `https://www.youtube.com/watch?v=${id}`;
     this.isPlaying = false;
     this.queuedBy = '';
+    this.resolved = !!id;
   }
 }

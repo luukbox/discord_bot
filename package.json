@@ -25,9 +25,11 @@
     "dotenv": "^6.2.0",
     "opusscript": "^0.0.8",
     "simple-youtube-api": "^5.1.1",
+    "spotify-web-api-node": "^5.0.2",
     "ytdl-core": "^4.5.0"
   },
   "devDependencies": {
+    "@types/spotify-web-api-node": "^5.0.0",
     "pm2": "^4.5.5",
     "ts-node": "^7.0.1",
     "tslint": "^5.12.1",

@@ -1,4 +1,11 @@
 import { Message } from 'discord.js';
+import {
+  fetchSpotifyPlaylistTracks,
+  fetchSpotifyTrack,
+  isSpotifyPlaylistUri,
+  isSpotifyTrackUri,
+  parseSpotifyIdFromUri,
+} from '../../apis/spotify';
 import * as youtube from '../../apis/yt';
 import { ICommand } from '../../message-broker/MessageBroker';
 import ServerSession from '../../models/ServerSession';
@@ -30,64 +37,92 @@ export class PlayCommand implements ICommand {
 
     const serverSession = this.serverStore.get(msg.guild.id);
 
-    let song: Song;
+    let songs: Song[];
 
     try {
-      // construct the url from the first argument
-      const url = args[1].replace(/<(.+)>/g, '$1');
-      // check if the url is a valid youtube url
-      if (youtube.isYoutube(url)) {
-        song = await youtube.getSongByURL(url);
-      }
-      // else construct a query string from all arguments and search youtube
-      else {
-        const query = args.slice(1).join(' ');
-        song = await youtube.getSongByQuery(query);
+      if (isSpotifyTrackUri(args[1])) {
+        const trackId = parseSpotifyIdFromUri(args[1]);
+        const song = await fetchSpotifyTrack(trackId);
+        songs = [song];
+      } else if (isSpotifyPlaylistUri(args[1])) {
+        const playlistId = parseSpotifyIdFromUri(args[1]);
+        songs = await fetchSpotifyPlaylistTracks(playlistId);
+        songs = songs.sort(() => Math.random() - 0.5); // shuffle songs
+      } else {
+        // construct the url from the first argument
+        const url = args[1].replace(/<(.+)>/g, '$1');
+        // check if the url is a valid youtube url
+        if (youtube.isYoutube(url)) {
+          const song = await youtube.getSongByURL(url);
+          songs = [song];
+        }
+        // else construct a query string from all arguments and search youtube
+        else {
+          const query = args.slice(1).join(' ');
+          const song = await youtube.getSongByQuery(query);
+          songs = [song];
+        }
       }
     } catch (error) {
       console.error(error);
       return msg.react('💩');
     }
 
-    song.queuedBy = msg.author.toString();
+    songs.forEach((song) => (song.queuedBy = msg.author.toString()));
     if (!serverSession) {
       const newServerSession = new ServerSession(
         msg.channel,
         msg.member.voiceChannel,
         msg.guild.id,
       );
-      newServerSession.queue.push(song);
+      newServerSession.queue.push(...songs);
       try {
         const connection = await msg.member.voiceChannel.join();
         newServerSession.connection = connection;
         this.serverStore.set(msg.guild.id, newServerSession);
-        this.play(msg.guild.id, newServerSession.queue[0]);
+        await this.play(msg.guild.id, newServerSession.queue[0]);
       } catch (error) {
         console.log(error);
         this.serverStore.delete(msg.guild.id);
         return msg.channel.send(`${error}`);
       }
     } else {
-      serverSession.queue.push(song);
+      serverSession.queue.push(...songs);
       return msg.react('👌');
     }
   }
 
-  private play(guildID: string, song: Song) {
+  private async play(guildID: string, song: Song): Promise<void> {
     const serverSession = this.serverStore.get(guildID);
-    console.log(song);
     if (!song) {
       serverSession.voiceChannel.leave();
       this.serverStore.delete(guildID);
       return;
     }
+    if (!song.resolved) {
+      try {
+        const resolvedYtSong = await youtube.getSongByQuery(song.title);
+        song.id = resolvedYtSong.id;
+        song.title = resolvedYtSong.title;
+        song.url = resolvedYtSong.url;
+        song.resolved = true;
+      } catch (err) {
+        console.log(err);
+        this.play(guildID, serverSession.getNextSong());
+        return;
+      }
+    }
+    song.isPlaying = true;
+
+    console.log(song);
 
     serverSession.connection
       .playStream(youtube.stream(song))
-      .on('end', () => {
+      .on('end', async () => {
         this.play(guildID, serverSession.getNextSong());
       })
       .on('error', (error) => console.error(error));
+
     serverSession.setVolume();
     serverSession.textChannel.send(serverSession.getNowPlayingEmbed());
   }
