@@ -28,7 +28,7 @@ export default class ServerSession {
     this.connection = null;
     this.queue = [];
     this.playing = true;
-    this.volume = 10;
+    this.volume = 100;
   }
 
   public pause(callback: () => void) {
