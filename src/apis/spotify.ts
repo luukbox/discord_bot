@@ -13,7 +13,7 @@ async function refreshToken() {
   const accessTokenResponse = await spotifyApi.clientCredentialsGrant();
   const accessToken = accessTokenResponse.body['access_token'];
   expirationDateMS =
-    new Date().getTime() + accessTokenResponse.body['expires_in'];
+    new Date().getTime() + accessTokenResponse.body['expires_in'] * 1000; // The time period (in seconds) for which the access token is valid.
   console.log('new expiration date: ' + expirationDateMS);
   spotifyApi.setAccessToken(accessToken);
 }
