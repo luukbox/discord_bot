@@ -6,28 +6,35 @@ let spotifyApi: SpotifyWebApi;
 
 let expirationDateMS: number;
 
+async function refreshToken() {
+  console.log('refreshing token!');
+  console.log('last expiration date: ' + expirationDateMS);
+  spotifyApi.resetAccessToken();
+  const accessTokenResponse = await spotifyApi.clientCredentialsGrant();
+  const accessToken = accessTokenResponse.body['access_token'];
+  expirationDateMS =
+    new Date().getTime() + accessTokenResponse.body['expires_in'];
+  console.log('new expiration date: ' + expirationDateMS);
+  spotifyApi.setAccessToken(accessToken);
+}
+
+async function checkToken() {
+  if (new Date().getTime() + 1000 >= expirationDateMS) {
+    // add a second of safety buffer
+    await refreshToken();
+  }
+}
+
 export async function initSpotify() {
   spotifyApi = new SpotifyWebApi({
     clientId: SPOTIFY_CLIENT_ID,
     clientSecret: SPOTIFY_CLIENT_SECRET,
   });
-  const accessTokenResponse = await spotifyApi.clientCredentialsGrant();
-
-  const accessToken = accessTokenResponse.body['access_token'];
-  expirationDateMS = Date.now() + accessTokenResponse.body['expires_in'] * 1000;
-
-  console.log(
-    'accessTokenResponse',
-    JSON.stringify(accessTokenResponse, null, 2),
-  );
-  console.log('The access token expires at ' + expirationDateMS);
-  console.log('The access token is ' + accessToken);
-
-  // Save the access token so that it's used in future calls
-  spotifyApi.setAccessToken(accessToken);
+  refreshToken();
 }
 
 export async function fetchSpotifyTrack(trackId: string): Promise<Song> {
+  await checkToken();
   const trackResponse = await spotifyApi.getTrack(trackId);
   const trackName = trackResponse.body.name;
   const artistName = trackResponse.body.artists[0].name;
@@ -43,6 +50,7 @@ export async function fetchSpotifyPlaylistTracks(
   let done = false;
   let offset = 0;
   do {
+    await checkToken();
     const playlistResponse = await spotifyApi.getPlaylistTracks(playlistId, {
       limit: PLAYLIST_LIMIT,
       offset,
@@ -56,6 +64,8 @@ export async function fetchSpotifyPlaylistTracks(
     .map((item) => item.track)
     .map((track) => new Song(null, track.artists[0].name + ' - ' + track.name));
 }
+
+// example uris
 // https://open.spotify.com/track/1uyOpyskQrpOUR5FW0kt3E?si=8rtrmqDXRfG8F1ENbi3Srw
 // spotify:track:1uyOpyskQrpOUR5FW0kt3E
 

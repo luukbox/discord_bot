@@ -7,7 +7,7 @@
     "build": "tsc",
     "start": "build && node ./dist/main.js",
     "pm2": "tsc && pm2 start ./dist/main.js --name luukbox --exp-backoff-restart-delay=100",
-    "dev": "ts-node ./src/main.ts"
+    "dev": "ts-node --watch ./src/**/*.ts ./src/main.ts"
   },
   "repository": {
     "type": "git",

@@ -1,8 +1,7 @@
 import { Message } from 'discord.js';
 
 export function isUserInVoiceChannel(msg: Message): boolean {
-  const voiceChannel = msg.member.voiceChannel;
-  return !!voiceChannel;
+  return !!msg.member && !!msg.member.voiceChannel;
 }
 
 export function isPermissionsSet(msg: Message) {
