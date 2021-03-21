@@ -31,8 +31,9 @@ export class SkipCommand implements ICommand {
         serverSession.queue.splice(0, amount - 1);
       }
     }
-    serverSession.connection.dispatcher.end();
-    serverSession.queue[0].isPlaying = false;
-    return msg.react('⏭');
+    if (serverSession.connection.dispatcher) {
+      serverSession.connection.dispatcher.end();
+      return msg.react('👌');
+    }
   }
 }

@@ -20,22 +20,23 @@ export class PlayCommand implements ICommand {
     this.serverStore = serverStore;
   }
 
-  public async run(msg: Message) {
+  public async run(msg: Message): Promise<void> {
     const args = msg.content.split(' ');
     if (!isUserInVoiceChannel(msg)) {
-      return msg.channel.send('Du bist in keinem Voice Channel..');
+      msg.channel.send('Du bist in keinem Voice Channel..');
+      return;
     }
 
     if (!isPermissionsSet(msg)) {
-      return msg.channel.send('Ich hab keine Rechte für den VoiceChannel..');
+      msg.channel.send('Ich hab keine Rechte für den VoiceChannel..');
+      return;
     }
 
     // No Arguments provided
     if (args.length < 2) {
-      return msg.react('🖕');
+      msg.react('🖕');
+      return;
     }
-
-    const serverSession = this.serverStore.get(msg.guild.id);
 
     let songs: Song[];
 
@@ -65,38 +66,86 @@ export class PlayCommand implements ICommand {
       }
     } catch (error) {
       console.error(error);
-      return msg.react('💩');
+      msg.react('💩');
+      return;
     }
 
     songs.forEach((song) => (song.queuedBy = msg.author.toString()));
-    if (!serverSession) {
+
+    if (!this.serverStore.has(msg.guild.id)) {
       const newServerSession = new ServerSession(
         msg.channel,
         msg.member.voiceChannel,
         msg.guild.id,
       );
-      newServerSession.queue.push(...songs);
       try {
         const connection = await msg.member.voiceChannel.join();
         newServerSession.connection = connection;
         this.serverStore.set(msg.guild.id, newServerSession);
-        await this.play(msg.guild.id, newServerSession.queue[0]);
       } catch (error) {
         console.log(error);
         this.serverStore.delete(msg.guild.id);
-        return msg.channel.send(`${error}`);
+        msg.channel.send(`${error}`);
+        return;
       }
-    } else {
-      serverSession.queue.push(...songs);
-      return msg.react('👌');
     }
+
+    const serverSession = this.serverStore.get(msg.guild.id);
+
+    serverSession.queue.push(...songs);
+
+    if (!serverSession.playing) {
+      this.play(msg.guild.id, serverSession.queue[0]);
+    }
+    msg.react('👌');
+  }
+
+  private onDispatcherStart(song: Song, serverSession: ServerSession): void {
+    serverSession.playing = true;
+    song.isPlaying = true;
+    serverSession.connection.dispatcher &&
+      serverSession.connection.dispatcher.setVolume(1);
+    serverSession.textChannel
+      .send(serverSession.getNowPlayingEmbed())
+      .then((msgs) => {
+        const msg = Array.isArray(msgs) ? msgs[0] : (msgs as Message);
+        return msg.react('⏭');
+      })
+      .then((msgReaction) => {
+        const msg = msgReaction.message;
+
+        msg
+          .awaitReactions(
+            (reaction, user) =>
+              ['⏭'].includes(reaction.emoji.name) &&
+              user.id !== msg.author.id /* dont react on bot reactions*/,
+            { max: 1 },
+          )
+          .then((collected) => {
+            if (song.isPlaying) {
+              song.isPlaying = false;
+              serverSession.queue.slice(0, 1);
+              serverSession.connection.dispatcher.end();
+            }
+            msg.react('👌');
+          });
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }
+
+  private onDispatcherEnd(song: Song, serverSession: ServerSession): void {
+    song.isPlaying = false;
+    this.play(serverSession.guildID, serverSession.getNextSong());
   }
 
   private async play(guildID: string, song: Song): Promise<void> {
     const serverSession = this.serverStore.get(guildID);
+
     if (!song) {
-      serverSession.voiceChannel.leave();
-      this.serverStore.delete(guildID);
+      serverSession.playing = false;
+      serverSession.queueChannelLeave(() => this.serverStore.delete(guildID));
       return;
     }
     if (!song.resolved) {
@@ -112,37 +161,11 @@ export class PlayCommand implements ICommand {
         return;
       }
     }
-    song.isPlaying = true;
-
-    console.log(song);
 
     serverSession.connection
       .playStream(youtube.stream(song))
-      .on('end', async () => {
-        song.isPlaying = false;
-        this.play(guildID, serverSession.getNextSong());
-      })
+      .on('start', () => this.onDispatcherStart(song, serverSession))
+      .on('end', () => this.onDispatcherEnd(song, serverSession))
       .on('error', (error) => console.error(error));
-
-    serverSession.setVolume();
-    const msgs = await serverSession.textChannel.send(
-      serverSession.getNowPlayingEmbed(),
-    );
-    const msg = Array.isArray(msgs) ? msgs[0] : (msgs as Message);
-
-    await msg.react('⏭');
-
-    const filter = (reaction, user) => {
-      return ['⏭'].includes(reaction.emoji.name) && user.id !== msg.author.id; // donÄt react on bot reactions
-    };
-
-    msg.awaitReactions(filter, { max: 1 }).then((collected) => {
-      if (song.isPlaying) {
-        song.isPlaying = false;
-        serverSession.queue.slice(0, 1);
-        serverSession.connection.dispatcher.end();
-      }
-      msg.react('👍');
-    });
   }
 }

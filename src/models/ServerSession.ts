@@ -15,7 +15,6 @@ export default class ServerSession {
   public connection: VoiceConnection;
   public queue: Song[];
   public playing: boolean;
-  private volume: number;
 
   constructor(
     textChannel: TextChannel | DMChannel | GroupDMChannel,
@@ -27,8 +26,7 @@ export default class ServerSession {
     this.guildID = guildID;
     this.connection = null;
     this.queue = [];
-    this.playing = true;
-    this.volume = 100;
+    this.playing = false;
   }
 
   public pause(callback: () => void) {
@@ -40,32 +38,26 @@ export default class ServerSession {
   }
 
   public resume(callback: () => void) {
-    if (!this.playing) {
+    if (!this.playing && this.queue.length > 0) {
       this.playing = true;
       this.connection.dispatcher.resume();
       callback();
     }
   }
 
+  public queueChannelLeave(callbackOnLeave: () => void) {
+    setTimeout(() => {
+      if (this.playing) {
+        return;
+      }
+      this.voiceChannel.leave();
+      callbackOnLeave();
+    }, 5 * 60 * 1000); // 5 mins
+  }
+
   public shuffleQueue(callback: () => void) {
     this.queue.sort(() => Math.random() - 0.5);
     callback();
-  }
-
-  public getVolume(): number {
-    return this.connection.dispatcher.volume * 100;
-  }
-
-  public setVolume(volume?: number) {
-    if (!volume) {
-      this.connection.dispatcher.setVolume(this.volume / 100);
-      return;
-    }
-    if (volume > 100) {
-      volume = 100;
-    }
-    this.volume = volume;
-    this.connection.dispatcher.setVolume(volume / 100);
   }
 
   public getQueueEmbed(): RichEmbed {
@@ -81,6 +73,16 @@ export default class ServerSession {
       .join('\n');
     if (this.queue.length > maxElementsDisplayedInQueue) {
       description += `\n...${this.queue.length - maxElementsDisplayedInQueue}`;
+    }
+    if (this.queue.length === 0) {
+      return new RichEmbed({
+        title: 'Warteschlange',
+        color: 0x00ae86,
+        image: {
+          url:
+            'https://media1.tenor.com/images/36f2ec3fb32381e09b6bf96e818faf13/tenor.gif',
+        },
+      });
     }
     return new RichEmbed()
       .setTitle('Warteschlange')

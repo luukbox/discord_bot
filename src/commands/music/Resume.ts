@@ -19,6 +19,6 @@ export class ResumeCommand {
     if (!isUserInVoiceChannel(msg)) {
       return msg.react('🤦');
     }
-    serverSession.resume(() => msg.react('▶'));
+    serverSession.resume(() => msg.react('👌'));
   }
 }

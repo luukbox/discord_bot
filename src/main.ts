@@ -1,6 +1,7 @@
 import { Client } from 'discord.js';
 import { initSpotify } from './apis/spotify';
 import {
+  LeaveCommand,
   PauseCommand,
   PingCommand,
   PlayCommand,
@@ -8,7 +9,6 @@ import {
   ResumeCommand,
   SkipCommand,
   StopCommand,
-  VolumeCommand,
 } from './commands';
 import { ShuffleCommand } from './commands/music/Shuffle';
 import { DISCORD_TOKEN, PREFIX } from './config';
@@ -27,7 +27,7 @@ const commands = [
   new QueueCommand(serverStore),
   new ShuffleCommand(serverStore),
   new SkipCommand(serverStore),
-  new VolumeCommand(serverStore),
+  new LeaveCommand(serverStore),
 ];
 
 // add the commands

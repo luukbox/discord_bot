@@ -20,6 +20,6 @@ export class PauseCommand implements ICommand {
     if (!isUserInVoiceChannel(msg)) {
       return msg.react('🤦');
     }
-    return serverSession.pause(() => msg.react('⏸'));
+    return serverSession.pause(() => msg.react('👌'));
   }
 }

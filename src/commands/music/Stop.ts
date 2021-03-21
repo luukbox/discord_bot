@@ -20,8 +20,10 @@ export class StopCommand implements ICommand {
       msg.react('🤦');
       return;
     }
-    serverSession.queue = [];
-    serverSession.connection.dispatcher.end();
-    msg.react('⏹');
+    if (serverSession.playing) {
+      serverSession.queue = [];
+      serverSession.connection.dispatcher.end();
+      msg.react('👌');
+    }
   }
 }

@@ -20,6 +20,6 @@ export class ShuffleCommand implements ICommand {
     if (!isUserInVoiceChannel(msg)) {
       return msg.react('🤦');
     }
-    return serverSession.shuffleQueue(() => msg.react('🔀'));
+    return serverSession.shuffleQueue(() => msg.react('👌'));
   }
 }
